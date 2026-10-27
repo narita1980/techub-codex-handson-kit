@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>テスト結果</title>
+<style>
+  body { font-family: system-ui, "Hiragino Sans", sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+  li { list-style: none; padding: 8px 12px; margin: 6px 0; border-radius: 8px; }
+  .ok { background: #dcfce7; } .ng { background: #fee2e2; } small { display: block; color: #991b1b; }
+  h1 span { font-size: 18px; color: #6b7280; }
+</style>
+</head>
+<body>
+<h1>テスト結果 <span id="sum"></span></h1>
+<ul id="list"></ul>
+<script src="game.js"></script>
+<script src="tests.js"></script>
+<script>
+  const results = runSnakeTests();
+  document.getElementById("sum").textContent = results.filter((r) => r.ok).length + " / " + results.length + " 成功";
+  document.getElementById("list").innerHTML = results.map((r) =>
+    `<li class="${r.ok ? "ok" : "ng"}">${r.ok ? "✓" : "✗"} ${r.name}${r.ok ? "" : "<small>" + r.error + "</small>"}</li>`).join("");
+</script>
+</body>
+</html>
