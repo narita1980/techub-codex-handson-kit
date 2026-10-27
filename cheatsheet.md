@@ -38,4 +38,4 @@
 | `codex mcp` / `codex plugin` | 外部ツール（MCP）やプラグインを管理する |
 
 ## 並列で頼む
-`./parallel.sh "お題1" "お題2" "お題3"`：お題ごとに git worktree を作り、`codex exec` を並列に走らせて、結果を見比べる
+`bash parallel.sh "お題1" "お題2" "お題3"`：お題ごとに git worktree を作り、`codex exec` を並列に走らせて、結果を見比べる
