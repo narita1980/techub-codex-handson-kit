@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>スネークゲーム</title>
+<style>
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: radial-gradient(circle at 50% 30%, #1e293b, #0b1120); color: #e2e8f0; font-family: system-ui, "Hiragino Sans", sans-serif; }
+  main { text-align: center; padding: 12px; }
+  h1 { margin: 0 0 4px; font-size: 20px; letter-spacing: .1em; color: #6ee7b7; }
+  canvas { width: min(92vw, 440px); height: auto; background: #0f172a; border-radius: 16px; box-shadow: 0 0 0 2px #1f2937, 0 20px 50px #000a; touch-action: none; }
+  #score { font-size: 22px; margin: 6px 0 10px; font-variant-numeric: tabular-nums; }
+  button { font-size: 16px; padding: 8px 18px; border-radius: 10px; border: 0; background: #10a37f; color: #fff; cursor: pointer; margin-top: 10px; }
+  .pad { display: grid; grid-template-columns: repeat(3, 56px); gap: 6px; justify-content: center; margin-top: 10px; }
+  .pad button { margin: 0; padding: 12px 0; background: #334155; }
+  .hint { font-size: 12px; color: #94a3b8; margin-top: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>SNAKE</h1>
+  <div id="score">スコア 0</div>
+  <canvas id="c" width="440" height="440"></canvas>
+  <div><button id="restart">もう一度（Space）</button></div>
+  <div class="pad">
+    <span></span><button data-d="up">↑</button><span></span>
+    <button data-d="left">←</button><button data-d="down">↓</button><button data-d="right">→</button>
+  </div>
+  <div class="hint">矢印キー / WASD / ボタンで操作</div>
+</main>
+<script src="game.js"></script>
+<script>
+  const SIZE = 20, CELL = 22, PX = SIZE * CELL;
+  const ctx = document.getElementById("c").getContext("2d");
+  let game, timer, lastScore = 0, particles = [];
+
+  function rr(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, r);
+    ctx.fill();
+  }
+
+  function burst(cx, cy) {
+    for (let i = 0; i < 14; i++) {
+      const a = Math.random() * 6.283, v = 1 + Math.random() * 2.5;
+      particles.push({ x: cx, y: cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1 });
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, PX, PX);
+    // 市松模様の盤面
+    for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
+      ctx.fillStyle = (x + y) % 2 ? "#0f172a" : "#111c33";
+      ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+    }
+    // エサ（光る）
+    if (game.food) {
+      ctx.save();
+      ctx.shadowColor = "#f87171"; ctx.shadowBlur = 18;
+      ctx.fillStyle = "#ef4444";
+      ctx.beginPath(); ctx.arc(game.food.x * CELL + CELL / 2, game.food.y * CELL + CELL / 2, CELL * 0.34, 0, 7); ctx.fill();
+      ctx.restore();
+    }
+    // 蛇（頭から尻尾へ色がだんだん濃く）
+    const n = game.snake.length;
+    for (let i = n - 1; i >= 0; i--) {
+      const p = game.snake[i];
+      const t = n > 1 ? i / (n - 1) : 0;
+      ctx.fillStyle = i === 0 ? "#6ee7b7" : `hsl(160 ${70 - t * 25}% ${48 - t * 18}%)`;
+      rr(p.x * CELL + 1.5, p.y * CELL + 1.5, CELL - 3, CELL - 3, i === 0 ? 8 : 6);
+    }
+    // 目
+    const h = game.snake[0], d = game.dir, cx = h.x * CELL + CELL / 2, cy = h.y * CELL + CELL / 2;
+    ctx.fillStyle = "#0f172a";
+    [-1, 1].forEach((s) => {
+      ctx.beginPath();
+      ctx.arc(cx + d.x * 4 + (d.y ? s * 4 : 0), cy + d.y * 4 + (d.x ? s * 4 : 0), 2.2, 0, 7);
+      ctx.fill();
+    });
+    // 食べたときの光
+    particles = particles.filter((p) => p.life > 0);
+    particles.forEach((p) => {
+      p.x += p.vx; p.y += p.vy; p.life -= 0.05;
+      ctx.fillStyle = `rgba(251,191,36,${Math.max(p.life, 0)})`;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 3 * p.life + 1, 0, 7); ctx.fill();
+    });
+    document.getElementById("score").textContent = "スコア " + game.score;
+    if (!game.alive) {
+      ctx.fillStyle = "#000a"; ctx.fillRect(0, 0, PX, PX);
+      ctx.fillStyle = "#fbbf24"; ctx.font = "bold 36px system-ui"; ctx.textAlign = "center";
+      ctx.fillText("GAME OVER", PX / 2, PX / 2);
+      ctx.fillStyle = "#e2e8f0"; ctx.font = "16px system-ui";
+      ctx.fillText("Space でもう一度", PX / 2, PX / 2 + 32);
+    }
+  }
+
+  function tick() {
+    SnakeGame.step(game);
+    if (game.score > lastScore && game.food) { lastScore = game.score; burst(game.snake[0].x * CELL + CELL / 2, game.snake[0].y * CELL + CELL / 2); }
+    draw();
+    if (!game.alive) clearInterval(timer);
+  }
+
+  function start() {
+    clearInterval(timer);
+    game = SnakeGame.createGame(SIZE, SIZE);
+    lastScore = 0; particles = [];
+    draw();
+    timer = setInterval(tick, 120);
+  }
+  setInterval(() => { if (particles.length && !game.alive) draw(); }, 40);
+
+  const KEYS = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", w: "up", s: "down", a: "left", d: "right" };
+  addEventListener("keydown", (e) => {
+    if (e.key === " ") { e.preventDefault(); start(); return; }
+    if (KEYS[e.key]) { e.preventDefault(); SnakeGame.setDirection(game, KEYS[e.key]); }
+  });
+  document.querySelectorAll(".pad button").forEach((b) => b.addEventListener("click", () => SnakeGame.setDirection(game, b.dataset.d)));
+  document.getElementById("restart").addEventListener("click", start);
+  start();
+</script>
+</body>
+</html>
